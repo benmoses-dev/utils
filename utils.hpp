@@ -4,7 +4,6 @@
 #include <cmath>
 #include <functional>
 #include <iostream>
-#include <optional>
 #include <variant>
 
 /**
@@ -20,18 +19,6 @@ template <class... Ts> overloaded(Ts...) -> overloaded<Ts...>;
  */
 template <class Variant, class... Fs> auto vmatch(Variant &&v, Fs &&...fs) {
     return std::visit(overloaded{std::forward<Fs>(fs)...}, std::forward<Variant>(v));
-}
-
-/**
- * Pattern matching for optional (exhaustive)
- */
-template <typename T, typename... Fs>
-auto omatch(const std::optional<T> &opt, Fs &&...fs) {
-    std::variant<std::nullopt_t, T> v =
-        opt ? std::variant<std::nullopt_t, T>(std::in_place_index<1>, *opt)
-            : std::variant<std::nullopt_t, T>(std::in_place_index<0>, std::nullopt);
-
-    return std::visit(overloaded{std::forward<Fs>(fs)...}, v);
 }
 
 /**

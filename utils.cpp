@@ -1,6 +1,5 @@
 #include "utils.hpp"
 #include <cmath>
-#include <optional>
 #include <string>
 
 struct Circle {
@@ -20,15 +19,6 @@ int main() {
         s, [](Circle c) { return 3.141592653589793 * c.r * c.r; },
         [](Rect r) { return r.h * r.w; });
     std::cout << "area is: " << area << std::endl;
-
-    /**
-     * Optional pattern matching
-     */
-    std::optional<int> a = 42;
-    std::optional<int> b = std::nullopt;
-    omatch(
-        a, [](std::nullopt_t) { std::cout << "None\n"; },
-        [](int v) { std::cout << "Some " << v << "\n"; });
 
     /**
      * scope_exit / defer
