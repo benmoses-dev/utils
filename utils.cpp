@@ -8,55 +8,52 @@ struct Circle {
 struct Rect {
     double w, h;
 };
-using Shape = std::variant<Circle, Rect>;
 
+using namespace std;
+using Shape = variant<Circle, Rect>;
+
+Result<int, string> divide(int a, int b) {
+    if (b == 0) {
+        return Result<int, string>::Err("Divide by zero");
+    }
+    return Result<int, string>::Ok(a / b);
+};
+
+/**
+ * This is just me playing around turning C++ into Rust/Go...
+ */
 int main() {
     /**
-     * Variant pattern matching
+     * Custom scope utilities
+     */
+    time_scope("Starting computation...");
+    defer([] { cout << "Leaving main scope" << endl; });
+#ifdef __cpp_lib_scope
+    defer_fail([] { cout << "Exception occurred!" << endl; });
+    defer_success([] { cout << "Leaving scope gracefully..." << endl; });
+#endif
+
+    /**
+     * Variant pattern matching.
+     * I tried this with Optional and it was horrible, but this works nicely...
      */
     Shape s = Rect{3.0, 4.0};
-    double area = vmatch(
-        s, [](Circle c) { return 3.141592653589793 * c.r * c.r; },
+    double area = match(
+        s,
+        [](Circle c) { return 3.141592653589793 * c.r * c.r; },
         [](Rect r) { return r.h * r.w; });
-    std::cout << "area is: " << area << std::endl;
+    cout << "area is: " << area << endl;
 
     /**
-     * scope_exit / defer
+     * Using my custom Result type.
+     * You must check both the success and error results.
+     * The only downside is that the compiler isn't too useful...
      */
-    defer([] { std::cout << "Leaving main scope\n"; });
-    std::cout << "Doing some work...\n";
-
-    /**
-     * scoped_timer
-     */
-    {
-        scoped_timer timer("Starting computation...");
-        volatile int sum = 0;
-        for (int i = 0; i < 1000000; ++i)
-            sum += i;
-    }
-
-    /**
-     * clamp / lerp
-     */
-    std::cout << "clamp(10,0,5) = " << clamp(10, 0, 5) << "\n";             // 5
-    std::cout << "lerp(0.0,10.0,0.25) = " << lerp(0.0, 10.0, 0.25) << "\n"; // 2.5
-
-    /**
-     * Result<T,E>
-     */
-    auto divide = [](int a, int b) -> Result<int, std::string> {
-        if (b == 0) {
-            return Result<int, std::string>::Err("Divide by zero");
-        }
-        return Result<int, std::string>::Ok(a / b);
-    };
-
     auto r = divide(10, 2);
-    r.match([](int v) { std::cout << "Result: " << v << "\n"; },
-            [](const std::string &e) { std::cout << "Error: " << e << "\n"; });
+    r.match([](int v) { cout << "Result: " << v << endl; },
+            [](const string &e) { cout << "Error: " << e << endl; });
 
     auto r2 = divide(5, 0);
-    r2.match([](int v) { std::cout << "Result: " << v << "\n"; },
-             [](const std::string &e) { std::cout << "Error: " << e << "\n"; });
+    r2.match([](int v) { cout << "Result: " << v << endl; },
+             [](const string &e) { cout << "Error: " << e << endl; });
 }

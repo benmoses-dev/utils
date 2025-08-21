@@ -2,72 +2,68 @@
 
 #include <chrono>
 #include <cmath>
-#include <functional>
 #include <iostream>
 #include <variant>
+#include <version>
 
-/**
- * Overloaded helper - use inheritence and operator overloading
- */
 template <class... Ts> struct overloaded : Ts... {
-    using Ts::operator()...;
+    using Ts::operator()...; // Inherit and bring into set
 };
-template <class... Ts> overloaded(Ts...) -> overloaded<Ts...>;
+template <class... Ts>
+overloaded(Ts...) -> overloaded<Ts...>; // Help CTAD as we have no constructor
 
-/**
- * Pattern matching for variant (exhaustive)
- */
-template <class Variant, class... Fs> auto vmatch(Variant &&v, Fs &&...fs) {
-    return std::visit(overloaded{std::forward<Fs>(fs)...}, std::forward<Variant>(v));
+template <class Variant, class... Fs> auto match(Variant &&v, Fs &&...fs) {
+    return std::visit(
+        overloaded{std::forward<Fs>(fs)...},
+        std::forward<Variant>(v)); // Match the variant against the combined callable
 }
 
-/**
- * scope_exit / defer
- */
+#define CONCAT_IMPL(x, y) x##y
+#define CONCAT(x, y) CONCAT_IMPL(x, y)
+
+#ifdef __cpp_lib_scope
+// C++23
+#include <scope>
+using my_scope_exit = std::scope_exit;
+#define defer_fail auto CONCAT(_defer_fail_, __LINE__) = std::scope_fail
+#define defer_success auto CONCAT(_defer_success_, __LINE__) = std::scope_success
+#else
+#include <functional>
 class scope_exit {
     std::function<void()> f;
     bool active = true;
 
   public:
     explicit scope_exit(std::function<void()> f) : f(std::move(f)) {}
-    ~scope_exit() {
+    ~scope_exit() { // Use f as the cleanup function on the destructor once scope exits
         if (active)
             f();
     }
-    void release() { active = false; }
+    void release() { active = false; } // Possible undo if needed
 };
+using my_scope_exit = scope_exit;
+#endif
 
-#define CONCAT_IMPL(x, y) x##y
-#define CONCAT(x, y) CONCAT_IMPL(x, y)
-#define defer auto CONCAT(_defer_, __LINE__) = scope_exit
+// Use _defer_linenumber to release the guard (or just use scope_exit directly...)
+#define defer auto CONCAT(_defer_, __LINE__) = my_scope_exit
 
-/**
- * scoped_timer
- */
-class scoped_timer {
+class scope_timer {
     const char *name;
     std::chrono::steady_clock::time_point start;
 
   public:
-    explicit scoped_timer(const char *n)
+    explicit scope_timer(const char *n)
         : name(n), start(std::chrono::steady_clock::now()) {}
-    ~scoped_timer() {
+    ~scope_timer() {
         auto end = std::chrono::steady_clock::now();
         std::cout
             << name << " took "
             << std::chrono::duration_cast<std::chrono::milliseconds>(end - start).count()
-            << " ms\n";
+            << " ms" << std::endl;
     }
 };
 
-/**
- * Math helpers
- */
-template <typename T> constexpr T clamp(T val, T lo, T hi) {
-    return val < lo ? lo : (val > hi ? hi : val);
-}
-
-template <typename T> constexpr T lerp(T a, T b, double t) { return a + (b - a) * t; }
+#define time_scope auto CONCAT(_time_scope_, __LINE__) = scope_timer
 
 /**
  * Result<T,E> type with enforced pattern matching
