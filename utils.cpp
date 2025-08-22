@@ -2,19 +2,19 @@
 #include <cmath>
 #include <string>
 
+using namespace std;
+
 struct Circle {
     double r;
 };
 struct Rect {
     double w, h;
 };
-
-using namespace std;
 using Shape = variant<Circle, Rect>;
 
 Result<int, string> divide(int a, int b) {
     if (b == 0) {
-        return Result<int, string>::Err("Divide by zero");
+        return Result<int, string>::Err("Division by zero");
     }
     return Result<int, string>::Ok(a / b);
 };
@@ -23,14 +23,15 @@ Result<int, string> divide(int a, int b) {
  * This is just me playing around turning C++ into Rust/Go...
  */
 int main() {
-    /**
-     * Custom scope utilities
-     */
-    time_scope("Starting computation...");
-    defer([] { cout << "Leaving main scope" << endl; });
-#ifdef __cpp_lib_scope
-    defer_fail([] { cout << "Exception occurred!" << endl; });
-    defer_success([] { cout << "Leaving scope gracefully..." << endl; });
+    time_scope("My entire main function");
+    defer { cout << "Leaving main scope" << endl; }
+    defer_end;
+
+#if defined(__cpp_lib_scope) && __cpp_lib_scope >= 202207L
+    defer_fail { cout << "Exception occurred!" << endl; }
+    defer_end;
+    defer_success { cout << "Leaving scope gracefully..." << endl; }
+    defer_end;
 #endif
 
     /**
@@ -39,8 +40,7 @@ int main() {
      */
     Shape s = Rect{3.0, 4.0};
     double area = match(
-        s,
-        [](Circle c) { return 3.141592653589793 * c.r * c.r; },
+        s, [](Circle c) { return 3.141592653589793 * c.r * c.r; },
         [](Rect r) { return r.h * r.w; });
     cout << "area is: " << area << endl;
 

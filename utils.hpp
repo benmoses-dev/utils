@@ -21,32 +21,49 @@ template <class Variant, class... Fs> auto match(Variant &&v, Fs &&...fs) {
 #define CONCAT_IMPL(x, y) x##y
 #define CONCAT(x, y) CONCAT_IMPL(x, y)
 
-#ifdef __cpp_lib_scope
+#if defined(__cpp_lib_scope) && __cpp_lib_scope >= 202207L
 // C++23
 #include <scope>
-using my_scope_exit = std::scope_exit;
-#define defer_fail auto CONCAT(_defer_fail_, __LINE__) = std::scope_fail
-#define defer_success auto CONCAT(_defer_success_, __LINE__) = std::scope_success
+#define defer auto CONCAT(_defer_, __COUNTER__) = std::scope_exit([&]()
+#define defer_fail auto CONCAT(_defer_fail_, __COUNTER__) = std::scope_fail([&]()
+#define defer_success auto CONCAT(_defer_success_, __COUNTER__) = std::scope_success([&]()
 #else
-#include <functional>
-class scope_exit {
-    std::function<void()> f;
+template <typename F> class scope_exit {
+    F f;
     bool active = true;
 
   public:
-    explicit scope_exit(std::function<void()> f) : f(std::move(f)) {}
+    explicit scope_exit(F &&fun) : f(std::forward<F>(fun)) {}
+    scope_exit(const scope_exit &) = delete;
+    scope_exit &
+    operator=(const scope_exit &) = delete; // Don't allow copying (would call f twice)
+    scope_exit(scope_exit &&other) noexcept
+        : f(std::move(other.f)), active(other.active) {
+        other.active = false;
+    }
+    scope_exit &operator=(scope_exit &&other) noexcept {
+        if (this != &other) {
+            if (active)
+                f(); // If we are intentionally overwriting, trigger the cleanup
+            f = std::move(other.f);
+            active = other.active;
+            other.active = false;
+        }
+        return *this;
+    }
     ~scope_exit() { // Use f as the cleanup function on the destructor once scope exits
         if (active)
             f();
     }
     void release() { active = false; } // Possible undo if needed
 };
-using my_scope_exit = scope_exit;
+template <typename F> scope_exit(F &&) -> scope_exit<std::decay_t<F>>;
+#define defer auto CONCAT(_defer_, __COUNTER__) = scope_exit([&]()
 #endif
 
-// Use _defer_linenumber to release the guard (or just use scope_exit directly...)
-#define defer auto CONCAT(_defer_, __LINE__) = my_scope_exit
+#define defer_end )
 
+// Simple class for timing until destruction
 class scope_timer {
     const char *name;
     std::chrono::steady_clock::time_point start;
@@ -65,16 +82,20 @@ class scope_timer {
 
 #define time_scope auto CONCAT(_time_scope_, __LINE__) = scope_timer
 
-/**
- * Result<T,E> type with enforced pattern matching
- */
 template <typename T, typename E> class Result {
-    std::variant<T, E> data;
+    std::variant<T, E>
+        data; // Result will essentially be a variant with an Ok type and an Err type
 
   public:
-    static Result Ok(T val) { return Result(std::in_place_index<0>, std::move(val)); }
-    static Result Err(E val) { return Result(std::in_place_index<1>, std::move(val)); }
+    template <typename U> static Result Ok(U &&val) {
+        return Result(std::in_place_index<0>, std::forward<U>(val));
+    }
+    template <typename U> static Result Err(U &&val) {
+        return Result(std::in_place_index<1>,
+                      std::forward<U>(val)); // Avoid double move for large rvalues
+    }
 
+    // The types need to be distinct to use match, otherwise the lambdas won't overload...
     template <typename FOk, typename FErr> auto match(FOk &&ok, FErr &&err) const {
         return std::visit(overloaded{std::forward<FOk>(ok), std::forward<FErr>(err)},
                           data);
