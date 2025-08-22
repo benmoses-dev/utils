@@ -80,7 +80,7 @@ class scope_timer {
     }
 };
 
-#define time_scope auto CONCAT(_time_scope_, __LINE__) = scope_timer
+#define time_scope auto CONCAT(_time_scope_, __COUNTER__) = scope_timer
 
 template <typename T, typename E> class Result {
     std::variant<T, E>
