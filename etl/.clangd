@@ -1,0 +1,7 @@
+CompileFlags:
+  Add: [
+    -I/usr/include/postgresql,
+    -I/usr/include/mysql,
+    -lpq,
+    -lmysqlclient
+  ]

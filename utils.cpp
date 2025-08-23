@@ -24,14 +24,11 @@ Result<int, string> divide(int a, int b) {
  */
 int main() {
     time_scope("My entire main function");
-    defer { cout << "Leaving main scope" << endl; }
-    defer_end;
+    defer([]() { cout << "Leaving main scope" << endl; });
 
 #if defined(__cpp_lib_scope) && __cpp_lib_scope >= 202207L
-    defer_fail { cout << "Exception occurred!" << endl; }
-    defer_end;
-    defer_success { cout << "Leaving scope gracefully..." << endl; }
-    defer_end;
+    defer_fail([]() { cout << "Exception occurred!" << endl; });
+    defer_success([]() { cout << "Leaving scope gracefully..." << endl; });
 #endif
 
     /**

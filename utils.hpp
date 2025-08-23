@@ -24,9 +24,9 @@ template <class Variant, class... Fs> auto match(Variant &&v, Fs &&...fs) {
 #if defined(__cpp_lib_scope) && __cpp_lib_scope >= 202207L
 // C++23
 #include <scope>
-#define defer auto CONCAT(_defer_, __COUNTER__) = std::scope_exit([&]()
-#define defer_fail auto CONCAT(_defer_fail_, __COUNTER__) = std::scope_fail([&]()
-#define defer_success auto CONCAT(_defer_success_, __COUNTER__) = std::scope_success([&]()
+#define defer auto CONCAT(_defer_, __COUNTER__) = std::scope_exit
+#define defer_fail auto CONCAT(_defer_fail_, __COUNTER__) = std::scope_fail
+#define defer_success auto CONCAT(_defer_success_, __COUNTER__) = std::scope_success
 #else
 template <typename F> class scope_exit {
     F f;
@@ -58,10 +58,8 @@ template <typename F> class scope_exit {
     void release() { active = false; } // Possible undo if needed
 };
 template <typename F> scope_exit(F &&) -> scope_exit<std::decay_t<F>>;
-#define defer auto CONCAT(_defer_, __COUNTER__) = scope_exit([&]()
+#define defer auto CONCAT(_defer_, __COUNTER__) = scope_exit
 #endif
-
-#define defer_end )
 
 // Simple class for timing until destruction
 class scope_timer {
